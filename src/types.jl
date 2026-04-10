@@ -34,14 +34,15 @@ const NAMED_COLORS = Dict{Symbol, RGBA}(
     :transparent => RGBA(0.0, 0.0, 0.0, 0.0),
 )
 
-# Default color cycle (Makie's wong palette)
+# Default color cycle (Makie's wong palette — exact order from Makie/src/theming.jl)
 const COLOR_CYCLE = RGBA[
-    RGBA(0.0, 0.447, 0.698),    # blue
-    RGBA(0.902, 0.624, 0.0),    # orange
-    RGBA(0.0, 0.620, 0.451),    # green
-    RGBA(0.835, 0.369, 0.0),    # vermillion
-    RGBA(0.337, 0.706, 0.914),  # sky blue
-    RGBA(0.800, 0.475, 0.655),  # pink
+    RGBA(0.0, 0.447, 0.698),    # 1: blue     (0/255, 114/255, 178/255)
+    RGBA(0.902, 0.624, 0.0),    # 2: orange   (230/255, 159/255, 0/255)
+    RGBA(0.0, 0.620, 0.451),    # 3: green    (0/255, 158/255, 115/255)
+    RGBA(0.800, 0.475, 0.655),  # 4: reddish purple (204/255, 121/255, 167/255)
+    RGBA(0.337, 0.706, 0.914),  # 5: sky blue (86/255, 180/255, 233/255)
+    RGBA(0.835, 0.369, 0.0),    # 6: vermillion (213/255, 94/255, 0/255)
+    RGBA(0.941, 0.894, 0.259),  # 7: yellow   (240/255, 228/255, 66/255)
 ]
 
 resolve_color(c::RGBA) = c
@@ -177,7 +178,7 @@ function Axis(gp::GridPosition;
     spinecolor = nothing,
 )
     gc = gridcolor === nothing ? RGBA(0.0, 0.0, 0.0, 0.12) : resolve_color(gridcolor)
-    sc = spinecolor === nothing ? RGBA(0.0, 0.0, 0.0, 0.6) : resolve_color(spinecolor)
+    sc = spinecolor === nothing ? RGBA(0.0, 0.0, 0.0, 1.0) : resolve_color(spinecolor)  # Makie: solid black
     xl_min = xlim === nothing ? NaN : Float64(xlim[1])
     xl_max = xlim === nothing ? NaN : Float64(xlim[2])
     yl_min = ylim === nothing ? NaN : Float64(ylim[1])

@@ -50,9 +50,8 @@ end
 function _render_grid!(ax::Axis, vp::AxisViewport)
     if !ax.xgridvisible && !ax.ygridvisible; return; end
 
-    canvas_set_line_width(0.5)
+    canvas_set_line_width(1.0)  # Makie default: 1.0
     _set_stroke(ax.gridcolor)
-    canvas_set_line_dash_dashed()
 
     if ax.xgridvisible
         for t in vp.xticks
@@ -68,7 +67,6 @@ function _render_grid!(ax::Axis, vp::AxisViewport)
             canvas_line_to(vp.plot_right, py); canvas_stroke()
         end
     end
-    canvas_set_line_dash_solid()
 end
 
 # ─── Spines ───
@@ -85,7 +83,7 @@ end
 
 function _render_ticks!(ax::Axis, vp::AxisViewport, fontsize::Float64)
     tick_len = 5.0
-    label_size = fontsize * 0.75
+    label_size = fontsize  # Makie: tick labels inherit theme fontsize
 
     _set_stroke(ax.spinecolor)
     _set_fill(RGBA(0.0, 0.0, 0.0))
@@ -212,29 +210,34 @@ function _render_heatmap!(p::HeatmapPlot, vp::AxisViewport)
     end
 end
 
-"""Simplified viridis colormap: t ∈ [0,1] → (r,g,b) in [0,255]."""
+"""Viridis colormap: t ∈ [0,1] → (r,g,b) in [0,255]. 9-stop piecewise linear."""
 function _viridis(t::Float64)
-    # 5-stop linear interpolation approximating viridis
-    if t < 0.25
-        s = t / 0.25
-        r = 68.0 + s * (49.0 - 68.0)
-        g = 1.0 + s * (104.0 - 1.0)
-        b = 84.0 + s * (142.0 - 84.0)
+    # 9 key stops from the matplotlib viridis table (0-255 scale)
+    # Stops at t = 0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1.0
+    if t < 0.125
+        s = t / 0.125
+        r = 68.0 + s * (72.0 - 68.0); g = 1.0 + s * (34.0 - 1.0); b = 84.0 + s * (115.0 - 84.0)
+    elseif t < 0.25
+        s = (t - 0.125) / 0.125
+        r = 72.0 + s * (59.0 - 72.0); g = 34.0 + s * (82.0 - 34.0); b = 115.0 + s * (139.0 - 115.0)
+    elseif t < 0.375
+        s = (t - 0.25) / 0.125
+        r = 59.0 + s * (44.0 - 59.0); g = 82.0 + s * (114.0 - 82.0); b = 139.0 + s * (142.0 - 139.0)
     elseif t < 0.5
-        s = (t - 0.25) / 0.25
-        r = 49.0 + s * (33.0 - 49.0)
-        g = 104.0 + s * (165.0 - 104.0)
-        b = 142.0 + s * (133.0 - 142.0)
+        s = (t - 0.375) / 0.125
+        r = 44.0 + s * (33.0 - 44.0); g = 114.0 + s * (145.0 - 114.0); b = 142.0 + s * (140.0 - 142.0)
+    elseif t < 0.625
+        s = (t - 0.5) / 0.125
+        r = 33.0 + s * (53.0 - 33.0); g = 145.0 + s * (172.0 - 145.0); b = 140.0 + s * (118.0 - 140.0)
     elseif t < 0.75
-        s = (t - 0.5) / 0.25
-        r = 33.0 + s * (144.0 - 33.0)
-        g = 165.0 + s * (206.0 - 165.0)
-        b = 133.0 + s * (68.0 - 133.0)
+        s = (t - 0.625) / 0.125
+        r = 53.0 + s * (94.0 - 53.0); g = 172.0 + s * (201.0 - 172.0); b = 118.0 + s * (98.0 - 118.0)
+    elseif t < 0.875
+        s = (t - 0.75) / 0.125
+        r = 94.0 + s * (171.0 - 94.0); g = 201.0 + s * (221.0 - 201.0); b = 98.0 + s * (56.0 - 98.0)
     else
-        s = (t - 0.75) / 0.25
-        r = 144.0 + s * (253.0 - 144.0)
-        g = 206.0 + s * (231.0 - 206.0)
-        b = 68.0 + s * (37.0 - 68.0)
+        s = (t - 0.875) / 0.125
+        r = 171.0 + s * (253.0 - 171.0); g = 221.0 + s * (231.0 - 221.0); b = 56.0 + s * (37.0 - 56.0)
     end
     return (r, g, b)
 end
@@ -296,9 +299,8 @@ end
 
 function _js_render_grid!(js::IOBuffer, ax::Axis, vp::AxisViewport)
     (!ax.xgridvisible && !ax.ygridvisible) && return
-    println(js, "c2d.set_line_width(0.5);")
+    println(js, "c2d.set_line_width(1.0);")  # Makie default
     _js_set_stroke(js, ax.gridcolor)
-    println(js, "c2d.set_line_dash_dashed();")
     if ax.xgridvisible
         for t in vp.xticks
             px = data_to_pixel(t, vp.xmin, vp.xmax, vp.plot_left, vp.plot_right)
@@ -311,7 +313,6 @@ function _js_render_grid!(js::IOBuffer, ax::Axis, vp::AxisViewport)
             println(js, "c2d.begin_path(); c2d.move_to($(vp.plot_left), $py); c2d.line_to($(vp.plot_right), $py); c2d.stroke();")
         end
     end
-    println(js, "c2d.set_line_dash_solid();")
 end
 
 function _js_render_line!(js::IOBuffer, p::LinePlot, vp::AxisViewport)
@@ -361,7 +362,7 @@ function _js_render_ticks!(js::IOBuffer, ax::Axis, vp::AxisViewport, fontsize::F
     _js_set_stroke(js, ax.spinecolor)
     _js_set_fill(js, RGBA(0.0, 0.0, 0.0))
     println(js, "c2d.set_line_width(1.0);")
-    println(js, "ctx.font='$(label_size)px sans-serif'; ctx.textBaseline='top'; ctx.textAlign='center';")
+    println(js, "ctx.font='$(fontsize)px sans-serif'; ctx.textBaseline='top'; ctx.textAlign='center';")
     for t in vp.xticks
         px = data_to_pixel(t, vp.xmin, vp.xmax, vp.plot_left, vp.plot_right)
         println(js, "c2d.begin_path(); c2d.move_to($px, $(vp.plot_bottom)); c2d.line_to($px, $(vp.plot_bottom + tick_len)); c2d.stroke();")
@@ -378,19 +379,18 @@ end
 function _js_render_labels!(js::IOBuffer, ax::Axis, vp::AxisViewport, fontsize::Float64)
     _js_set_fill(js, RGBA(0.0, 0.0, 0.0))
     if !isempty(ax.title)
-        fs = fontsize * 1.2
         mid_x = (vp.plot_left + vp.plot_right) / 2.0
-        println(js, "ctx.font='bold $(fs)px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';")
+        println(js, "ctx.font='bold $(fontsize)px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';")
         println(js, "ctx.fillText('$(ax.title)', $mid_x, $(vp.plot_top - 8.0));")
     end
     if !isempty(ax.xlabel)
-        fs = fontsize * 0.9
+        fs = fontsize
         mid_x = (vp.plot_left + vp.plot_right) / 2.0
         println(js, "ctx.font='$(fs)px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';")
         println(js, "ctx.fillText('$(ax.xlabel)', $mid_x, $(vp.plot_bottom + MARGIN_BOTTOM - 6.0));")
     end
     if !isempty(ax.ylabel)
-        fs = fontsize * 0.9
+        fs = fontsize
         mid_y = (vp.plot_top + vp.plot_bottom) / 2.0
         xp = vp.plot_left - MARGIN_LEFT + 14.0
         println(js, "ctx.save(); ctx.translate($xp, $mid_y); ctx.rotate(-Math.PI/2);")

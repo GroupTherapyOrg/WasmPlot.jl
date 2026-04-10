@@ -2,7 +2,7 @@
 
 julia_version = "1.12.4"
 manifest_format = "2.0"
-project_hash = "86889626edc09fe14ecc41c647addd9defadc52d"
+project_hash = "ad46e29f2871648774c89d6a3284f3d1979b6dfc"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
@@ -216,6 +216,7 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 version = "1.11.0"
 
 [[deps.WasmPlot]]
+deps = ["WasmTarget"]
 path = "."
 uuid = "a1b2c3d4-e5f6-7890-abcd-ef0123456789"
 version = "0.1.0"
