@@ -15,38 +15,40 @@
 # Matches: plotters-rs CanvasBackend, AssemblyScript canvas-api pattern.
 
 # ─── Path operations ───
-@noinline canvas_begin_path()::Int64 = Int64(0)
-@noinline canvas_close_path()::Int64 = Int64(0)
-@noinline canvas_move_to(x::Float64, y::Float64)::Int64 = Int64(0)
-@noinline canvas_line_to(x::Float64, y::Float64)::Int64 = Int64(0)
-@noinline canvas_arc(x::Float64, y::Float64, r::Float64, start_angle::Float64, end_angle::Float64)::Int64 = Int64(0)
+# Base.donotdelete() prevents Julia's optimizer from DCE'ing these calls.
+# The optimizer sees them as side-effectful (effect_free=false) so :invoke
+# is preserved in optimized IR, allowing func_registry to match them.
+@noinline function canvas_begin_path()::Int64; Base.donotdelete(0); Int64(0); end
+@noinline function canvas_close_path()::Int64; Base.donotdelete(0); Int64(0); end
+@noinline function canvas_move_to(x::Float64, y::Float64)::Int64; Base.donotdelete(x, y); Int64(0); end
+@noinline function canvas_line_to(x::Float64, y::Float64)::Int64; Base.donotdelete(x, y); Int64(0); end
+@noinline function canvas_arc(x::Float64, y::Float64, r::Float64, start_angle::Float64, end_angle::Float64)::Int64; Base.donotdelete(x, y, r, start_angle, end_angle); Int64(0); end
 
 # ─── Drawing ───
-@noinline canvas_stroke()::Int64 = Int64(0)
-@noinline canvas_fill()::Int64 = Int64(0)
-@noinline canvas_fill_rect(x::Float64, y::Float64, w::Float64, h::Float64)::Int64 = Int64(0)
-@noinline canvas_clear_rect(x::Float64, y::Float64, w::Float64, h::Float64)::Int64 = Int64(0)
-@noinline canvas_stroke_rect(x::Float64, y::Float64, w::Float64, h::Float64)::Int64 = Int64(0)
+@noinline function canvas_stroke()::Int64; Base.donotdelete(0); Int64(0); end
+@noinline function canvas_fill()::Int64; Base.donotdelete(0); Int64(0); end
+@noinline function canvas_fill_rect(x::Float64, y::Float64, w::Float64, h::Float64)::Int64; Base.donotdelete(x, y, w, h); Int64(0); end
+@noinline function canvas_clear_rect(x::Float64, y::Float64, w::Float64, h::Float64)::Int64; Base.donotdelete(x, y, w, h); Int64(0); end
+@noinline function canvas_stroke_rect(x::Float64, y::Float64, w::Float64, h::Float64)::Int64; Base.donotdelete(x, y, w, h); Int64(0); end
 
 # ─── Style ───
-@noinline canvas_set_stroke_rgb(r::Float64, g::Float64, b::Float64)::Int64 = Int64(0)
-@noinline canvas_set_fill_rgb(r::Float64, g::Float64, b::Float64)::Int64 = Int64(0)
-@noinline canvas_set_fill_rgba(r::Float64, g::Float64, b::Float64, a::Float64)::Int64 = Int64(0)
-@noinline canvas_set_line_width(w::Float64)::Int64 = Int64(0)
-@noinline canvas_set_font_size(size::Float64)::Int64 = Int64(0)
+@noinline function canvas_set_stroke_rgb(r::Float64, g::Float64, b::Float64)::Int64; Base.donotdelete(r, g, b); Int64(0); end
+@noinline function canvas_set_fill_rgb(r::Float64, g::Float64, b::Float64)::Int64; Base.donotdelete(r, g, b); Int64(0); end
+@noinline function canvas_set_fill_rgba(r::Float64, g::Float64, b::Float64, a::Float64)::Int64; Base.donotdelete(r, g, b, a); Int64(0); end
+@noinline function canvas_set_line_width(w::Float64)::Int64; Base.donotdelete(w); Int64(0); end
+@noinline function canvas_set_font_size(size::Float64)::Int64; Base.donotdelete(size); Int64(0); end
 
-# ─── Text (single ASCII char — avoids string passing for v0.1) ───
-# char_code is the ASCII code point (e.g., 48 for '0', 65 for 'A')
-@noinline canvas_fill_text_char(char_code::Float64, x::Float64, y::Float64)::Int64 = Int64(0)
+# ─── Text ───
+@noinline function canvas_fill_text_char(char_code::Float64, x::Float64, y::Float64)::Int64; Base.donotdelete(char_code, x, y); Int64(0); end
 
 # ─── State ───
-@noinline canvas_save()::Int64 = Int64(0)
-@noinline canvas_restore()::Int64 = Int64(0)
+@noinline function canvas_save()::Int64; Base.donotdelete(0); Int64(0); end
+@noinline function canvas_restore()::Int64; Base.donotdelete(0); Int64(0); end
 
-# ─── Dash pattern (for linestyle support) ───
-@noinline canvas_set_line_dash_solid()::Int64 = Int64(0)       # []
-@noinline canvas_set_line_dash_dashed()::Int64 = Int64(0)      # [6, 4]
-@noinline canvas_set_line_dash_dotted()::Int64 = Int64(0)      # [2, 3]
+# ─── Dash pattern ───
+@noinline function canvas_set_line_dash_solid()::Int64; Base.donotdelete(0); Int64(0); end
+@noinline function canvas_set_line_dash_dashed()::Int64; Base.donotdelete(0); Int64(0); end
+@noinline function canvas_set_line_dash_dotted()::Int64; Base.donotdelete(0); Int64(0); end
 
 # ─── All stubs collected for import registration ───
 
