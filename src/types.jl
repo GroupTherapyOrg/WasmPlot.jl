@@ -218,15 +218,32 @@ Add a bar plot to an existing axis. Matches Makie's `barplot!`.
 """
 function barplot!(ax::Axis, x, heights;
     color = nothing,
-    width::Real = 0.8,
+    width = nothing,   # nothing = automatic (Makie default)
+    gap::Real = 0.2,
     strokecolor = :black,
     strokewidth::Real = 0,
     label::String = ""
 )
     ax._plot_count += 1
     c = color === nothing ? cycle_color(ax._plot_count) : resolve_color(color)
-    p = BarPlot(Float64.(collect(x)), Float64.(collect(heights)),
-                c, Float64(width), resolve_color(strokecolor), Float64(strokewidth), label)
+
+    # Makie's width algorithm: min gap between x positions, scaled by (1 - gap)
+    xf = Float64.(collect(x))
+    if width === nothing
+        if length(xf) <= 1
+            w = 1.0
+        else
+            sorted = sort(unique(xf))
+            diffs = diff(sorted)
+            w = isempty(diffs) ? 1.0 : minimum(diffs)
+        end
+        w *= (1.0 - Float64(gap))
+    else
+        w = Float64(width)
+    end
+
+    p = BarPlot(xf, Float64.(collect(heights)),
+                c, w, resolve_color(strokecolor), Float64(strokewidth), label)
     push!(ax.plots, p)
     return p
 end

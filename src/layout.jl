@@ -37,10 +37,18 @@ function compute_data_limits(ax::Axis)
         end
     end
 
-    # Bar charts: always include 0 as baseline (Makie's fillto=0 default)
+    # Bar charts: include 0 baseline + extend x-limits by half bar width
     if has_bars
         ymin > 0.0 && (ymin = 0.0)
         ymax < 0.0 && (ymax = 0.0)
+        # Find bar width to extend x-limits (Makie extends by half a bar)
+        for p in ax.plots
+            if p isa BarPlot
+                half_w = p.width / 2.0
+                xmin = min(xmin, minimum(p.x) - half_w)
+                xmax = max(xmax, maximum(p.x) + half_w)
+            end
+        end
     end
 
     # Handle empty / degenerate
