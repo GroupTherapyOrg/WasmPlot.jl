@@ -74,8 +74,8 @@ using WasmPlot
         ax = Axis(fig[1, 1])
         p1 = lines!(ax, [1.0], [1.0])
         p2 = lines!(ax, [1.0], [1.0])
-        @test p1.color == WasmPlot.COLOR_CYCLE[1]
-        @test p2.color == WasmPlot.COLOR_CYCLE[2]
+        @test p1.color == WasmPlot.cycle_color(1)
+        @test p2.color == WasmPlot.cycle_color(2)
     end
 
     @testset "Tick computation" begin

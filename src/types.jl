@@ -19,39 +19,38 @@ end
 RGBA(r, g, b) = RGBA(Float64(r), Float64(g), Float64(b), 1.0)
 rgba(r, g, b, a=1.0) = RGBA(Float64(r), Float64(g), Float64(b), Float64(a))
 
-# Named color palette (Makie uses Colors.jl, we inline the essentials)
-const NAMED_COLORS = Dict{Symbol, RGBA}(
-    :black      => RGBA(0.0, 0.0, 0.0),
-    :white      => RGBA(1.0, 1.0, 1.0),
-    :red        => RGBA(1.0, 0.0, 0.0),
-    :green      => RGBA(0.0, 0.5, 0.0),
-    :blue       => RGBA(0.235, 0.51, 0.965),    # Makie's default blue
-    :orange     => RGBA(0.902, 0.494, 0.133),
-    :purple     => RGBA(0.584, 0.345, 0.698),
-    :cyan       => RGBA(0.0, 0.745, 0.812),
-    :gray       => RGBA(0.5, 0.5, 0.5),
-    :lightgray  => RGBA(0.83, 0.83, 0.83),
-    :transparent => RGBA(0.0, 0.0, 0.0, 0.0),
-)
-
-# Default color cycle (Makie's wong palette — exact order from Makie/src/theming.jl)
-const COLOR_CYCLE = RGBA[
-    RGBA(0.0, 0.447, 0.698),    # 1: blue     (0/255, 114/255, 178/255)
-    RGBA(0.902, 0.624, 0.0),    # 2: orange   (230/255, 159/255, 0/255)
-    RGBA(0.0, 0.620, 0.451),    # 3: green    (0/255, 158/255, 115/255)
-    RGBA(0.800, 0.475, 0.655),  # 4: reddish purple (204/255, 121/255, 167/255)
-    RGBA(0.337, 0.706, 0.914),  # 5: sky blue (86/255, 180/255, 233/255)
-    RGBA(0.835, 0.369, 0.0),    # 6: vermillion (213/255, 94/255, 0/255)
-    RGBA(0.941, 0.894, 0.259),  # 7: yellow   (240/255, 228/255, 66/255)
-]
+# Named color lookup — if-else chain instead of Dict to avoid jl_object_id foreigncalls in WASM
+function resolve_color(c::Symbol)
+    c === :black      && return RGBA(0.0, 0.0, 0.0)
+    c === :white      && return RGBA(1.0, 1.0, 1.0)
+    c === :red        && return RGBA(1.0, 0.0, 0.0)
+    c === :green      && return RGBA(0.0, 0.5, 0.0)
+    c === :blue       && return RGBA(0.235, 0.51, 0.965)    # Makie's default blue
+    c === :orange     && return RGBA(0.902, 0.494, 0.133)
+    c === :purple     && return RGBA(0.584, 0.345, 0.698)
+    c === :cyan       && return RGBA(0.0, 0.745, 0.812)
+    c === :gray       && return RGBA(0.5, 0.5, 0.5)
+    c === :lightgray  && return RGBA(0.83, 0.83, 0.83)
+    c === :transparent && return RGBA(0.0, 0.0, 0.0, 0.0)
+    return RGBA(0.0, 0.0, 0.0)  # default: black
+end
 
 resolve_color(c::RGBA) = c
-resolve_color(c::Symbol) = get(NAMED_COLORS, c, NAMED_COLORS[:black])
 resolve_color(c::Tuple{Float64, Float64, Float64}) = RGBA(c[1], c[2], c[3])
 resolve_color(c::Tuple{Float64, Float64, Float64, Float64}) = RGBA(c[1], c[2], c[3], c[4])
-resolve_color(::Nothing) = NAMED_COLORS[:black]
+resolve_color(::Nothing) = RGBA(0.0, 0.0, 0.0)
 
-cycle_color(idx::Int) = COLOR_CYCLE[mod1(idx, length(COLOR_CYCLE))]
+# Color cycle — if-else chain instead of Vector lookup (Makie's wong palette)
+function cycle_color(idx::Int)
+    i = mod1(idx, Int64(7))
+    i == Int64(1) && return RGBA(0.0, 0.447, 0.698)      # blue
+    i == Int64(2) && return RGBA(0.902, 0.624, 0.0)      # orange
+    i == Int64(3) && return RGBA(0.0, 0.620, 0.451)      # green
+    i == Int64(4) && return RGBA(0.800, 0.475, 0.655)    # reddish purple
+    i == Int64(5) && return RGBA(0.337, 0.706, 0.914)    # sky blue
+    i == Int64(6) && return RGBA(0.835, 0.369, 0.0)      # vermillion
+    return RGBA(0.941, 0.894, 0.259)                      # yellow
+end
 
 # ─── Plot Types (concrete — no abstract dispatch, WASM-friendly) ───
 
@@ -203,7 +202,7 @@ end
 
 Add a line plot to an existing axis. Matches Makie's `lines!`.
 """
-function lines!(ax::Axis, x, y;
+function lines!(ax::Axis, x::Vector{Float64}, y::Vector{Float64};
     color = nothing,
     linewidth::Real = 1.5,
     linestyle::Symbol = :solid,
@@ -212,10 +211,14 @@ function lines!(ax::Axis, x, y;
     ax._plot_count += Int64(1)
     c = color === nothing ? cycle_color(Int(ax._plot_count)) : resolve_color(color)
     ls = linestyle === :dash ? Int64(1) : linestyle === :dot ? Int64(2) : Int64(0)
-    p = LinePlot(Float64.(collect(x)), Float64.(collect(y)),
-                 c, Float64(linewidth), ls, label)
+    p = LinePlot(x, y, c, Float64(linewidth), ls, label)
     push!(ax.line_plots, p)
     return p
+end
+
+# Generic fallback: convert to Vector{Float64} then dispatch to concrete method
+function lines!(ax::Axis, x, y; kw...)
+    lines!(ax, Float64.(collect(x)), Float64.(collect(y)); kw...)
 end
 
 """
@@ -223,7 +226,7 @@ end
 
 Add a scatter plot to an existing axis. Matches Makie's `scatter!`.
 """
-function scatter!(ax::Axis, x, y;
+function scatter!(ax::Axis, x::Vector{Float64}, y::Vector{Float64};
     color = nothing,
     markersize::Real = 9,
     marker::Symbol = :circle,
@@ -234,11 +237,15 @@ function scatter!(ax::Axis, x, y;
     ax._plot_count += Int64(1)
     c = color === nothing ? cycle_color(Int(ax._plot_count)) : resolve_color(color)
     mk = marker === :rect ? Int64(1) : marker === :cross ? Int64(2) : Int64(0)
-    p = ScatterPlot(Float64.(collect(x)), Float64.(collect(y)),
-                    c, Float64(markersize), mk,
+    p = ScatterPlot(x, y, c, Float64(markersize), mk,
                     resolve_color(strokecolor), Float64(strokewidth), label)
     push!(ax.scatter_plots, p)
     return p
+end
+
+# Generic fallback
+function scatter!(ax::Axis, x, y; kw...)
+    scatter!(ax, Float64.(collect(x)), Float64.(collect(y)); kw...)
 end
 
 """
@@ -246,7 +253,7 @@ end
 
 Add a bar plot to an existing axis. Matches Makie's `barplot!`.
 """
-function barplot!(ax::Axis, x, heights;
+function barplot!(ax::Axis, x::Vector{Float64}, heights::Vector{Float64};
     color = nothing,
     width = nothing,   # nothing = automatic (Makie default)
     gap::Real = 0.2,
@@ -258,12 +265,11 @@ function barplot!(ax::Axis, x, heights;
     c = color === nothing ? cycle_color(Int(ax._plot_count)) : resolve_color(color)
 
     # Makie's width algorithm: min gap between x positions, scaled by (1 - gap)
-    xf = Float64.(collect(x))
     if width === nothing
-        if length(xf) <= 1
+        if length(x) <= 1
             w = 1.0
         else
-            sorted = sort(unique(xf))
+            sorted = sort(unique(x))
             diffs = diff(sorted)
             w = isempty(diffs) ? 1.0 : minimum(diffs)
         end
@@ -272,10 +278,14 @@ function barplot!(ax::Axis, x, heights;
         w = Float64(width)
     end
 
-    p = BarPlot(xf, Float64.(collect(heights)),
-                c, w, resolve_color(strokecolor), Float64(strokewidth), label)
+    p = BarPlot(x, heights, c, w, resolve_color(strokecolor), Float64(strokewidth), label)
     push!(ax.bar_plots, p)
     return p
+end
+
+# Generic fallback
+function barplot!(ax::Axis, x, heights; kw...)
+    barplot!(ax, Float64.(collect(x)), Float64.(collect(heights)); kw...)
 end
 
 """
