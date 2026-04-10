@@ -84,6 +84,18 @@ struct BarPlot
     label::String
 end
 
+struct HeatmapPlot
+    nx::Int64               # grid columns
+    ny::Int64               # grid rows
+    xmin::Float64
+    xmax::Float64
+    ymin::Float64
+    ymax::Float64
+    values::Vector{Float64} # row-major: values[row * nx + col + 1]
+    vmin::Float64
+    vmax::Float64
+end
+
 # ─── Axis ───
 
 mutable struct Axis
@@ -91,6 +103,7 @@ mutable struct Axis
     line_plots::Vector{LinePlot}
     scatter_plots::Vector{ScatterPlot}
     bar_plots::Vector{BarPlot}
+    heatmap_plots::Vector{HeatmapPlot}
     xlabel::String
     ylabel::String
     title::String
@@ -172,7 +185,7 @@ function Axis(gp::GridPosition;
     xs = xscale === :log10 ? Int64(1) : Int64(0)
     ys = yscale === :log10 ? Int64(1) : Int64(0)
 
-    ax = Axis(LinePlot[], ScatterPlot[], BarPlot[],
+    ax = Axis(LinePlot[], ScatterPlot[], BarPlot[], HeatmapPlot[],
               xlabel, ylabel, title,
               xl_min, xl_max, yl_min, yl_max,
               xs, ys, resolve_color(backgroundcolor),
@@ -261,6 +274,28 @@ function barplot!(ax::Axis, x, heights;
     p = BarPlot(xf, Float64.(collect(heights)),
                 c, w, resolve_color(strokecolor), Float64(strokewidth), label)
     push!(ax.bar_plots, p)
+    return p
+end
+
+"""
+    heatmap!(ax, x_range, y_range, values; ...)
+
+Add a heatmap to an axis. values is a flat Vector (row-major).
+"""
+function heatmap!(ax::Axis, x_range::Tuple, y_range::Tuple,
+                  nx::Int, ny::Int, values::Vector{Float64})
+    vmin = Inf; vmax = -Inf
+    for v in values
+        v < vmin && (vmin = v)
+        v > vmax && (vmax = v)
+    end
+    if vmin == vmax; vmin -= 1.0; vmax += 1.0; end
+
+    p = HeatmapPlot(Int64(nx), Int64(ny),
+        Float64(x_range[1]), Float64(x_range[2]),
+        Float64(y_range[1]), Float64(y_range[2]),
+        values, vmin, vmax)
+    push!(ax.heatmap_plots, p)
     return p
 end
 

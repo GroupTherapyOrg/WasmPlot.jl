@@ -34,6 +34,7 @@ function _render_axis!(ax::Axis, vp::AxisViewport, fontsize::Float64)
     _render_grid!(ax, vp)
 
     canvas_save()
+    for p in ax.heatmap_plots; _render_heatmap!(p, vp); end
     for p in ax.line_plots;    _render_line!(p, vp); end
     for p in ax.scatter_plots; _render_scatter!(p, vp); end
     for p in ax.bar_plots;     _render_bar!(p, vp); end
@@ -185,6 +186,59 @@ function _render_bar!(p::BarPlot, vp::AxisViewport)
     end
 end
 
+function _render_heatmap!(p::HeatmapPlot, vp::AxisViewport)
+    pw = vp.plot_right - vp.plot_left
+    ph = vp.plot_bottom - vp.plot_top
+    cell_w = pw / Float64(p.nx)
+    cell_h = ph / Float64(p.ny)
+    range_val = p.vmax - p.vmin
+
+    row = Int64(0)
+    while row < p.ny
+        col = Int64(0)
+        while col < p.nx
+            idx = row * p.nx + col + Int64(1)
+            t = range_val > 0.0 ? (p.values[idx] - p.vmin) / range_val : 0.5
+            t = t < 0.0 ? 0.0 : (t > 1.0 ? 1.0 : t)
+            r, g, b = _viridis(t)
+            canvas_set_fill_rgb(r, g, b)
+            x = vp.plot_left + Float64(col) * cell_w
+            # Heatmap row 0 = bottom (y inverted)
+            y = vp.plot_bottom - Float64(row + Int64(1)) * cell_h
+            canvas_fill_rect(x, y, cell_w + 0.5, cell_h + 0.5)  # +0.5 avoids gaps
+            col = col + Int64(1)
+        end
+        row = row + Int64(1)
+    end
+end
+
+"""Simplified viridis colormap: t ∈ [0,1] → (r,g,b) in [0,255]."""
+function _viridis(t::Float64)
+    # 5-stop linear interpolation approximating viridis
+    if t < 0.25
+        s = t / 0.25
+        r = 68.0 + s * (49.0 - 68.0)
+        g = 1.0 + s * (104.0 - 1.0)
+        b = 84.0 + s * (142.0 - 84.0)
+    elseif t < 0.5
+        s = (t - 0.25) / 0.25
+        r = 49.0 + s * (33.0 - 49.0)
+        g = 104.0 + s * (165.0 - 104.0)
+        b = 142.0 + s * (133.0 - 142.0)
+    elseif t < 0.75
+        s = (t - 0.5) / 0.25
+        r = 33.0 + s * (144.0 - 33.0)
+        g = 165.0 + s * (206.0 - 165.0)
+        b = 133.0 + s * (68.0 - 133.0)
+    else
+        s = (t - 0.75) / 0.25
+        r = 144.0 + s * (253.0 - 144.0)
+        g = 206.0 + s * (231.0 - 206.0)
+        b = 68.0 + s * (37.0 - 68.0)
+    end
+    return (r, g, b)
+end
+
 # ─── Color helpers ───
 
 function _set_fill(c::RGBA)
@@ -228,6 +282,7 @@ function _js_render_axis!(js::IOBuffer, ax::Axis, vp::AxisViewport, fontsize::Fl
     println(js, "c2d.fill_rect($(vp.plot_left), $(vp.plot_top), $pw, $ph);")
     _js_render_grid!(js, ax, vp)
     println(js, "c2d.save();")
+    for p in ax.heatmap_plots; _js_render_heatmap!(js, p, vp); end
     for p in ax.line_plots;    _js_render_line!(js, p, vp); end
     for p in ax.scatter_plots; _js_render_scatter!(js, p, vp); end
     for p in ax.bar_plots;     _js_render_bar!(js, p, vp); end
@@ -350,3 +405,27 @@ _js_set_fill(js::IOBuffer, c::RGBA) = c.a < 1.0 ?
 
 _js_set_stroke(js::IOBuffer, c::RGBA) =
     println(js, "c2d.set_stroke_rgb($(c.r*255), $(c.g*255), $(c.b*255));")
+
+function _js_render_heatmap!(js::IOBuffer, p::HeatmapPlot, vp::AxisViewport)
+    pw = vp.plot_right - vp.plot_left
+    ph = vp.plot_bottom - vp.plot_top
+    cw = pw / Float64(p.nx)
+    ch = ph / Float64(p.ny)
+    range_val = p.vmax - p.vmin
+    row = 0
+    while row < p.ny
+        col = 0
+        while col < p.nx
+            idx = row * Int(p.nx) + col + 1
+            t = range_val > 0 ? (p.values[idx] - p.vmin) / range_val : 0.5
+            t = clamp(t, 0.0, 1.0)
+            r, g, b = _viridis(t)
+            println(js, "c2d.set_fill_rgb($r, $g, $b);")
+            x = vp.plot_left + Float64(col) * cw
+            y = vp.plot_bottom - Float64(row + 1) * ch
+            println(js, "c2d.fill_rect($x, $y, $(cw + 0.5), $(ch + 0.5));")
+            col += 1
+        end
+        row += 1
+    end
+end

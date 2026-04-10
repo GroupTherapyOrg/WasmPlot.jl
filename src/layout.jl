@@ -31,6 +31,12 @@ function compute_data_limits(ax::Axis)
         for v in p.x; v < xmin && (xmin = v); v > xmax && (xmax = v); end
         for v in p.heights; v < ymin && (ymin = v); v > ymax && (ymax = v); end
     end
+    for p in ax.heatmap_plots
+        p.xmin < xmin && (xmin = p.xmin)
+        p.xmax > xmax && (xmax = p.xmax)
+        p.ymin < ymin && (ymin = p.ymin)
+        p.ymax > ymax && (ymax = p.ymax)
+    end
 
     # Bar charts: include 0 baseline + extend x by half bar width
     if !isempty(ax.bar_plots)

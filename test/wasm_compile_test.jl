@@ -161,6 +161,24 @@ function _test_viewport_plot_left()::Float64
     return vp.plot_left
 end
 
+# HeatmapPlot + viridis colormap
+function _test_heatmap_create()::Float64
+    vals = Float64[]
+    i = Int64(0)
+    while i < Int64(25)
+        push!(vals, sin(Float64(i) * 0.5))
+        i = i + Int64(1)
+    end
+    p = WasmPlot.HeatmapPlot(Int64(5), Int64(5), 0.0, 5.0, 0.0, 5.0, vals, -1.0, 1.0)
+    return Float64(length(p.values)) + p.vmax
+end
+
+# Viridis colormap
+function _test_viridis()::Float64
+    r, g, b = WasmPlot._viridis(0.5)
+    return r + g + b
+end
+
 # ─── Run tests ───
 
 @testset "WasmPlot WASM Compilation" begin
@@ -243,6 +261,18 @@ end
         else
             println("  ✗ data_limits: $(r.error)")
         end
+    end
+
+    @testset "HeatmapPlot compiles" begin
+        r = wasm_compiles(_test_heatmap_create, ())
+        @test r.pass
+        r.pass ? println("  ✓ HeatmapPlot: $(r.size) bytes") : println("  ✗ HeatmapPlot: $(r.error)")
+    end
+
+    @testset "Viridis colormap compiles" begin
+        r = wasm_compiles(_test_viridis, ())
+        @test r.pass
+        r.pass ? println("  ✓ viridis: $(r.size) bytes") : println("  ✗ viridis: $(r.error)")
     end
 
     @testset "Figure + viewport compiles" begin

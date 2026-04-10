@@ -12,9 +12,10 @@ export Figure, Axis, GridPosition
 export RGBA, rgba
 
 # Plot functions (! = mutating, adds to existing axis)
-export lines!, scatter!, barplot!
+export lines!, scatter!, barplot!, heatmap!
 # Non-mutating forms (create figure + axis)
 export lines, scatter, barplot
+export HeatmapPlot
 
 # Axis helpers
 export xlims!, ylims!
