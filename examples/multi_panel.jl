@@ -46,15 +46,15 @@ html = """
 </style>
 </head>
 <body>
-<canvas id="plot" width="$(fig.size[1])" height="$(fig.size[2])"></canvas>
+<canvas id="plot" width="$(fig.width)" height="$(fig.height)"></canvas>
 <script>
 $(js_glue)
 var canvas = document.getElementById('plot');
 var dpr = window.devicePixelRatio || 1;
-canvas.width = $(fig.size[1]) * dpr;
-canvas.height = $(fig.size[2]) * dpr;
-canvas.style.width = '$(fig.size[1])px';
-canvas.style.height = '$(fig.size[2])px';
+canvas.width = $(fig.width) * dpr;
+canvas.height = $(fig.height) * dpr;
+canvas.style.width = '$(fig.width)px';
+canvas.style.height = '$(fig.height)px';
 var ctx = canvas.getContext('2d');
 ctx.scale(dpr, dpr);
 var c2d = canvas2d_imports(ctx);

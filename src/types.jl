@@ -52,31 +52,29 @@ resolve_color(::Nothing) = NAMED_COLORS[:black]
 
 cycle_color(idx::Int) = COLOR_CYCLE[mod1(idx, length(COLOR_CYCLE))]
 
-# ─── Abstract Plot ───
+# ─── Plot Types (concrete — no abstract dispatch, WASM-friendly) ───
 
-abstract type AbstractPlot end
-
-struct LinePlot <: AbstractPlot
+struct LinePlot
     x::Vector{Float64}
     y::Vector{Float64}
     color::RGBA
     linewidth::Float64
-    linestyle::Symbol      # :solid, :dash, :dot
+    linestyle::Int64       # 0=solid, 1=dash, 2=dot
     label::String
 end
 
-struct ScatterPlot <: AbstractPlot
+struct ScatterPlot
     x::Vector{Float64}
     y::Vector{Float64}
     color::RGBA
     markersize::Float64
-    marker::Symbol         # :circle, :rect, :cross
+    marker::Int64          # 0=circle, 1=rect, 2=cross
     strokecolor::RGBA
     strokewidth::Float64
     label::String
 end
 
-struct BarPlot <: AbstractPlot
+struct BarPlot
     x::Vector{Float64}
     heights::Vector{Float64}
     color::RGBA
@@ -89,35 +87,44 @@ end
 # ─── Axis ───
 
 mutable struct Axis
-    plots::Vector{AbstractPlot}
+    # Plot storage — separate vectors per type (concrete, no abstract dispatch)
+    line_plots::Vector{LinePlot}
+    scatter_plots::Vector{ScatterPlot}
+    bar_plots::Vector{BarPlot}
     xlabel::String
     ylabel::String
     title::String
-    xlim::Union{Tuple{Float64, Float64}, Nothing}
-    ylim::Union{Tuple{Float64, Float64}, Nothing}
-    xscale::Symbol           # :identity, :log10
-    yscale::Symbol
+    # Limits: use NaN sentinel instead of Union{..., Nothing} for WASM compatibility
+    xlim_min::Float64   # NaN = auto
+    xlim_max::Float64
+    ylim_min::Float64
+    ylim_max::Float64
+    xscale::Int64            # 0 = identity, 1 = log10
+    yscale::Int64
     backgroundcolor::RGBA
     xgridvisible::Bool
     ygridvisible::Bool
     gridcolor::RGBA
     spinecolor::RGBA
-    _plot_count::Int         # for color cycling
+    _plot_count::Int64       # for color cycling
+    row::Int64               # grid position (stored on axis, not in Dict)
+    col::Int64
 end
 
-# ─── Figure + GridPosition ───
+# ─── Figure ───
 
 mutable struct Figure
-    size::Tuple{Int, Int}
+    width::Int64
+    height::Int64
     backgroundcolor::RGBA
     fontsize::Float64
-    _grid::Dict{Tuple{Int,Int}, Axis}
+    axes::Vector{Axis}       # Vector, not Dict (WASM-friendly)
 end
 
 struct GridPosition
     figure::Figure
-    row::Int
-    col::Int
+    row::Int64
+    col::Int64
 end
 
 # ─── Constructors (Makie API) ───
@@ -132,10 +139,10 @@ function Figure(;
     backgroundcolor = :white,
     fontsize::Real = 14
 )
-    Figure(size, resolve_color(backgroundcolor), Float64(fontsize), Dict{Tuple{Int,Int}, Axis}())
+    Figure(Int64(size[1]), Int64(size[2]), resolve_color(backgroundcolor), Float64(fontsize), Axis[])
 end
 
-Base.getindex(fig::Figure, row::Int, col::Int) = GridPosition(fig, row, col)
+Base.getindex(fig::Figure, row::Int, col::Int) = GridPosition(fig, row, Int64(col))
 
 """
     Axis(gridpos; xlabel="", ylabel="", title="", ...)
@@ -158,13 +165,20 @@ function Axis(gp::GridPosition;
 )
     gc = gridcolor === nothing ? RGBA(0.0, 0.0, 0.0, 0.12) : resolve_color(gridcolor)
     sc = spinecolor === nothing ? RGBA(0.0, 0.0, 0.0, 0.6) : resolve_color(spinecolor)
-    xl = xlim === nothing ? nothing : (Float64(xlim[1]), Float64(xlim[2]))
-    yl = ylim === nothing ? nothing : (Float64(ylim[1]), Float64(ylim[2]))
+    xl_min = xlim === nothing ? NaN : Float64(xlim[1])
+    xl_max = xlim === nothing ? NaN : Float64(xlim[2])
+    yl_min = ylim === nothing ? NaN : Float64(ylim[1])
+    yl_max = ylim === nothing ? NaN : Float64(ylim[2])
+    xs = xscale === :log10 ? Int64(1) : Int64(0)
+    ys = yscale === :log10 ? Int64(1) : Int64(0)
 
-    ax = Axis(AbstractPlot[], xlabel, ylabel, title, xl, yl,
-              xscale, yscale, resolve_color(backgroundcolor),
-              xgridvisible, ygridvisible, gc, sc, 0)
-    gp.figure._grid[(gp.row, gp.col)] = ax
+    ax = Axis(LinePlot[], ScatterPlot[], BarPlot[],
+              xlabel, ylabel, title,
+              xl_min, xl_max, yl_min, yl_max,
+              xs, ys, resolve_color(backgroundcolor),
+              xgridvisible, ygridvisible, gc, sc, Int64(0),
+              Int64(gp.row), Int64(gp.col))
+    push!(gp.figure.axes, ax)
     return ax
 end
 
@@ -181,11 +195,12 @@ function lines!(ax::Axis, x, y;
     linestyle::Symbol = :solid,
     label::String = ""
 )
-    ax._plot_count += 1
-    c = color === nothing ? cycle_color(ax._plot_count) : resolve_color(color)
+    ax._plot_count += Int64(1)
+    c = color === nothing ? cycle_color(Int(ax._plot_count)) : resolve_color(color)
+    ls = linestyle === :dash ? Int64(1) : linestyle === :dot ? Int64(2) : Int64(0)
     p = LinePlot(Float64.(collect(x)), Float64.(collect(y)),
-                 c, Float64(linewidth), linestyle, label)
-    push!(ax.plots, p)
+                 c, Float64(linewidth), ls, label)
+    push!(ax.line_plots, p)
     return p
 end
 
@@ -202,12 +217,13 @@ function scatter!(ax::Axis, x, y;
     strokewidth::Real = 0,
     label::String = ""
 )
-    ax._plot_count += 1
-    c = color === nothing ? cycle_color(ax._plot_count) : resolve_color(color)
+    ax._plot_count += Int64(1)
+    c = color === nothing ? cycle_color(Int(ax._plot_count)) : resolve_color(color)
+    mk = marker === :rect ? Int64(1) : marker === :cross ? Int64(2) : Int64(0)
     p = ScatterPlot(Float64.(collect(x)), Float64.(collect(y)),
-                    c, Float64(markersize), marker,
+                    c, Float64(markersize), mk,
                     resolve_color(strokecolor), Float64(strokewidth), label)
-    push!(ax.plots, p)
+    push!(ax.scatter_plots, p)
     return p
 end
 
@@ -224,8 +240,8 @@ function barplot!(ax::Axis, x, heights;
     strokewidth::Real = 0,
     label::String = ""
 )
-    ax._plot_count += 1
-    c = color === nothing ? cycle_color(ax._plot_count) : resolve_color(color)
+    ax._plot_count += Int64(1)
+    c = color === nothing ? cycle_color(Int(ax._plot_count)) : resolve_color(color)
 
     # Makie's width algorithm: min gap between x positions, scaled by (1 - gap)
     xf = Float64.(collect(x))
@@ -244,7 +260,7 @@ function barplot!(ax::Axis, x, heights;
 
     p = BarPlot(xf, Float64.(collect(heights)),
                 c, w, resolve_color(strokecolor), Float64(strokewidth), label)
-    push!(ax.plots, p)
+    push!(ax.bar_plots, p)
     return p
 end
 
@@ -274,9 +290,11 @@ end
 # ─── Axis helpers ───
 
 function xlims!(ax::Axis, lo::Real, hi::Real)
-    ax.xlim = (Float64(lo), Float64(hi))
+    ax.xlim_min = Float64(lo)
+    ax.xlim_max = Float64(hi)
 end
 
 function ylims!(ax::Axis, lo::Real, hi::Real)
-    ax.ylim = (Float64(lo), Float64(hi))
+    ax.ylim_min = Float64(lo)
+    ax.ylim_max = Float64(hi)
 end
