@@ -20,6 +20,7 @@ function compute_data_limits(ax::Axis)
     xmin = Inf; xmax = -Inf
     ymin = Inf; ymax = -Inf
 
+    has_bars = false
     for p in ax.plots
         xs = _plot_x(p)
         ys = _plot_y(p)
@@ -31,6 +32,15 @@ function compute_data_limits(ax::Axis)
             v < ymin && (ymin = v)
             v > ymax && (ymax = v)
         end
+        if p isa BarPlot
+            has_bars = true
+        end
+    end
+
+    # Bar charts: always include 0 as baseline (Makie's fillto=0 default)
+    if has_bars
+        ymin > 0.0 && (ymin = 0.0)
+        ymax < 0.0 && (ymax = 0.0)
     end
 
     # Handle empty / degenerate

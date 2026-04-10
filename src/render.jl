@@ -436,68 +436,69 @@ function _js_render_ticks!(js::IOBuffer, ax::Axis, vp::AxisViewport, fontsize::F
     _js_set_stroke(js, ax.spinecolor)
     _js_set_fill(js, RGBA(0.0, 0.0, 0.0))
     println(js, "c2d.set_line_width(1.0);")
-    println(js, "c2d.set_font_size($label_size);")
+    # Use native ctx text rendering for the JS reference renderer
+    println(js, "ctx.font='$(label_size)px sans-serif';")
+    println(js, "ctx.textBaseline='top';")
 
-    # X ticks
+    # X ticks (centered below axis)
+    println(js, "ctx.textAlign='center';")
     for t in vp.xticks
         px = data_to_pixel(t, vp.xmin, vp.xmax, vp.plot_left, vp.plot_right)
         println(js, "c2d.begin_path(); c2d.move_to($px, $(vp.plot_bottom)); c2d.line_to($px, $(vp.plot_bottom + tick_len)); c2d.stroke();")
-        chars = format_number_chars(t)
-        lw = length(chars) * label_size * 0.6
-        sx = px - lw / 2.0
-        for (i, c) in enumerate(chars)
-            println(js, "c2d.fill_text_char($(Float64(c)), $(sx + (i-1) * label_size * 0.6), $(vp.plot_bottom + tick_len + label_size + 2.0));")
-        end
+        label = _format_tick(t)
+        println(js, "ctx.fillText('$label', $px, $(vp.plot_bottom + tick_len + 3.0));")
     end
 
-    # Y ticks
+    # Y ticks (right-aligned left of axis)
+    println(js, "ctx.textAlign='right'; ctx.textBaseline='middle';")
     for t in vp.yticks
         py = data_to_pixel(t, vp.ymin, vp.ymax, vp.plot_bottom, vp.plot_top)
         println(js, "c2d.begin_path(); c2d.move_to($(vp.plot_left - tick_len), $py); c2d.line_to($(vp.plot_left), $py); c2d.stroke();")
-        chars = format_number_chars(t)
-        lw = length(chars) * label_size * 0.6
-        for (i, c) in enumerate(chars)
-            println(js, "c2d.fill_text_char($(Float64(c)), $(vp.plot_left - tick_len - lw + (i-1) * label_size * 0.6 - 2.0), $(py + label_size * 0.35));")
-        end
+        label = _format_tick(t)
+        println(js, "ctx.fillText('$label', $(vp.plot_left - tick_len - 3.0), $py);")
     end
 end
 
 function _js_render_labels!(js::IOBuffer, ax::Axis, vp::AxisViewport, fontsize::Float64)
     _js_set_fill(js, RGBA(0.0, 0.0, 0.0))
 
+    # Title (centered above plot)
     if !isempty(ax.title)
-        fs = fontsize * 1.1
-        println(js, "c2d.set_font_size($fs);")
+        fs = fontsize * 1.2
         mid_x = (vp.plot_left + vp.plot_right) / 2.0
-        cw = fs * 0.6
-        sx = mid_x - length(ax.title) * cw / 2.0
-        for (i, ch) in enumerate(ax.title)
-            println(js, "c2d.fill_text_char($(Float64(Int(ch))), $(sx + (i-1) * cw), $(vp.plot_top - 10.0));")
-        end
+        println(js, "ctx.font='bold $(fs)px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';")
+        println(js, "ctx.fillText('$(ax.title)', $mid_x, $(vp.plot_top - 8.0));")
     end
 
+    # X label (centered below ticks)
     if !isempty(ax.xlabel)
-        fs = fontsize * 0.85
-        println(js, "c2d.set_font_size($fs);")
+        fs = fontsize * 0.9
         mid_x = (vp.plot_left + vp.plot_right) / 2.0
-        cw = fs * 0.6
-        sx = mid_x - length(ax.xlabel) * cw / 2.0
-        yp = vp.plot_bottom + MARGIN_BOTTOM - 8.0
-        for (i, ch) in enumerate(ax.xlabel)
-            println(js, "c2d.fill_text_char($(Float64(Int(ch))), $(sx + (i-1) * cw), $yp);")
-        end
+        yp = vp.plot_bottom + MARGIN_BOTTOM - 6.0
+        println(js, "ctx.font='$(fs)px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';")
+        println(js, "ctx.fillText('$(ax.xlabel)', $mid_x, $yp);")
     end
 
+    # Y label (rotated -90°, centered along left edge)
     if !isempty(ax.ylabel)
-        fs = fontsize * 0.85
-        println(js, "c2d.set_font_size($fs);")
+        fs = fontsize * 0.9
         mid_y = (vp.plot_top + vp.plot_bottom) / 2.0
-        ch_h = fs
-        sy = mid_y - length(ax.ylabel) * ch_h / 2.0
-        xp = vp.plot_left - MARGIN_LEFT + 10.0
-        for (i, ch) in enumerate(ax.ylabel)
-            println(js, "c2d.fill_text_char($(Float64(Int(ch))), $xp, $(sy + (i-1) * ch_h));")
-        end
+        xp = vp.plot_left - MARGIN_LEFT + 14.0
+        println(js, "ctx.save();")
+        println(js, "ctx.translate($xp, $mid_y);")
+        println(js, "ctx.rotate(-Math.PI/2);")
+        println(js, "ctx.font='$(fs)px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='bottom';")
+        println(js, "ctx.fillText('$(ax.ylabel)', 0, 0);")
+        println(js, "ctx.restore();")
+    end
+end
+
+"""Format a tick value as a clean string for JS text rendering."""
+function _format_tick(val::Float64)::String
+    if abs(val - round(val)) < 1e-9 && abs(val) < 1e6
+        return string(round(Int, val))
+    else
+        return string(round(val; digits=1))
     end
 end
 
