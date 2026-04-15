@@ -83,7 +83,7 @@ end
 
 function _render_ticks!(ax::Axis, vp::AxisViewport, fontsize::Float64)
     tick_len = 5.0
-    label_size = fontsize  # Makie: tick labels inherit theme fontsize
+    label_size = fontsize
 
     _set_stroke(ax.spinecolor)
     _set_fill(RGBA(0.0, 0.0, 0.0))
@@ -94,21 +94,111 @@ function _render_ticks!(ax::Axis, vp::AxisViewport, fontsize::Float64)
         px = data_to_pixel(t, vp.xmin, vp.xmax, vp.plot_left, vp.plot_right)
         canvas_begin_path(); canvas_move_to(px, vp.plot_bottom)
         canvas_line_to(px, vp.plot_bottom + tick_len); canvas_stroke()
+        _draw_text_prop(_format_tick(t), px, vp.plot_bottom + tick_len + label_size, label_size, Int64(0))  # 0 = center
     end
     for t in vp.yticks
         py = data_to_pixel(t, vp.ymin, vp.ymax, vp.plot_bottom, vp.plot_top)
         canvas_begin_path(); canvas_move_to(vp.plot_left - tick_len, py)
         canvas_line_to(vp.plot_left, py); canvas_stroke()
+        _draw_text_prop(_format_tick(t), vp.plot_left - tick_len - 3.0, py + label_size * 0.35, label_size, Int64(1))  # 1 = right
     end
 end
 
-# ─── Labels (char-by-char for WASM; JS reference renderer overrides) ───
-
 function _render_labels!(ax::Axis, vp::AxisViewport, fontsize::Float64)
     _set_fill(RGBA(0.0, 0.0, 0.0))
-    canvas_set_font_size(fontsize)
-    # Title, xlabel, ylabel rendered via char codes for WASM path
-    # (JS reference renderer uses native ctx.fillText — see generate_js_render)
+    title_size = fontsize * 1.15
+    axis_size  = fontsize
+
+    subtitle_size = fontsize * 0.85
+    cx = (vp.plot_left + vp.plot_right) / 2.0
+
+    if length(ax.title) > 0
+        canvas_set_font_size(title_size)
+        if length(ax.subtitle) > 0
+            _draw_text_prop(ax.title, cx, vp.plot_top - subtitle_size - 10.0, title_size, Int64(0))
+        else
+            _draw_text_prop(ax.title, cx, vp.plot_top - 8.0, title_size, Int64(0))
+        end
+    end
+    if length(ax.subtitle) > 0
+        canvas_set_font_size(subtitle_size)
+        _draw_text_prop(ax.subtitle, cx, vp.plot_top - 6.0, subtitle_size, Int64(0))
+    end
+
+    if length(ax.xlabel) > 0
+        canvas_set_font_size(axis_size)
+        cx = (vp.plot_left + vp.plot_right) / 2.0
+        _draw_text_prop(ax.xlabel, cx, vp.plot_bottom + 45.0, axis_size, Int64(0))
+    end
+
+    # Y label — rotated -π/2 (Makie/CairoMakie convention):
+    #   ctx.save(); ctx.translate(anchor_x, anchor_y); ctx.rotate(-π/2);
+    #   draw_centered(ylabel, 0, 0); ctx.restore();
+    if length(ax.ylabel) > 0
+        canvas_set_font_size(axis_size)
+        anchor_x = vp.plot_left - 42.0
+        anchor_y = (vp.plot_top + vp.plot_bottom) / 2.0
+        canvas_save()
+        canvas_translate(anchor_x, anchor_y)
+        canvas_rotate(-1.5707963267948966)  # -π/2 radians
+        _draw_text_prop(ax.ylabel, 0.0, 0.0, axis_size, Int64(0))  # centered at rotated origin
+        canvas_restore()
+    end
+end
+
+# Proportional-width char approximation (sans-serif).
+# Returns width-as-fraction-of-fontsize. Values from a visual fit to typical
+# sans-serif proportional fonts (narrow i/l/1 vs wide m/w/M/W).
+function _char_w_ratio(c::UInt8)::Float64
+    # narrow
+    if c == UInt8('i') || c == UInt8('l') || c == UInt8('I') || c == UInt8('j') ||
+       c == UInt8('t') || c == UInt8('f') || c == UInt8('r') ||
+       c == UInt8('.') || c == UInt8(',') || c == UInt8(':') || c == UInt8(';') ||
+       c == UInt8('!') || c == UInt8('|') || c == UInt8('\'') || c == UInt8('`') ||
+       c == UInt8('(') || c == UInt8(')') || c == UInt8('[') || c == UInt8(']') ||
+       c == UInt8('1')
+        return 0.3
+    # wide
+    elseif c == UInt8('m') || c == UInt8('w') || c == UInt8('M') || c == UInt8('W')
+        return 0.85
+    # punctuation / spaces
+    elseif c == UInt8(' ')
+        return 0.28
+    elseif c == UInt8('-') || c == UInt8('_')
+        return 0.4
+    # default for digits, letters
+    else
+        return 0.55
+    end
+end
+
+function _string_width(s::String, fontsize::Float64)::Float64
+    n = ncodeunits(s)
+    total = 0.0
+    i = Int64(1)
+    while i <= n
+        total += _char_w_ratio(codeunit(s, i)) * fontsize
+        i += Int64(1)
+    end
+    return total
+end
+
+# align: 0 = center (x is midpoint), 1 = right (x is right edge), 2 = left (x is left edge)
+function _draw_text_prop(s::String, x::Float64, y::Float64, fontsize::Float64, align::Int64)
+    n = ncodeunits(s)
+    if n == 0; return; end
+    w = _string_width(s, fontsize)
+    start_x = align == Int64(0) ? (x - w / 2.0) :
+              align == Int64(1) ? (x - w) :
+                                  x
+    cur = start_x
+    i = Int64(1)
+    while i <= n
+        c = codeunit(s, i)
+        canvas_fill_text_char(Float64(c), cur, y)
+        cur += _char_w_ratio(c) * fontsize
+        i += Int64(1)
+    end
 end
 
 # ─── Plot rendering (concrete types — no abstract dispatch) ───

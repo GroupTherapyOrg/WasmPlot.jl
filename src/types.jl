@@ -107,6 +107,7 @@ mutable struct Axis
     xlabel::String
     ylabel::String
     title::String
+    subtitle::String   # Makie: secondary heading rendered below title
     # Limits: use NaN sentinel instead of Union{..., Nothing} for WASM compatibility
     xlim_min::Float64   # NaN = auto
     xlim_max::Float64
@@ -166,6 +167,7 @@ function Axis(gp::GridPosition;
     xlabel::String = "",
     ylabel::String = "",
     title::String = "",
+    subtitle::String = "",
     xlim = nothing,
     ylim = nothing,
     xscale::Symbol = :identity,
@@ -186,7 +188,7 @@ function Axis(gp::GridPosition;
     ys = yscale === :log10 ? Int64(1) : Int64(0)
 
     ax = Axis(LinePlot[], ScatterPlot[], BarPlot[], HeatmapPlot[],
-              xlabel, ylabel, title,
+              xlabel, ylabel, title, subtitle,
               xl_min, xl_max, yl_min, yl_max,
               xs, ys, resolve_color(backgroundcolor),
               xgridvisible, ygridvisible, gc, sc, Int64(0),
@@ -264,15 +266,43 @@ function barplot!(ax::Axis, x::Vector{Float64}, heights::Vector{Float64};
     ax._plot_count += Int64(1)
     c = color === nothing ? cycle_color(Int(ax._plot_count)) : resolve_color(color)
 
-    # Makie's width algorithm: min gap between x positions, scaled by (1 - gap)
+    # Makie computes default width as `minimum(diff(sort(unique(filter(isfinite, x)))))`
+    # — "the smallest strictly-positive distance between any two distinct finite
+    # x values." This is mathematically equivalent to the minimum strictly-positive
+    # pairwise distance |x[i] - x[j]| over all i ≠ j with both finite.
+    #
+    # Proof: Let S = unique(filter(isfinite, x)) and T = sort(S). Since unique removes
+    # duplicates, T is strictly increasing, so diff(T) has all strictly-positive entries.
+    # min(diff(T)) is the minimum distance between CONSECUTIVE elements of T. For any
+    # two non-consecutive T[i] < T[j] (j > i+1), T[j] - T[i] = sum of consecutive gaps
+    # each > 0, so T[j] - T[i] > min(diff(T)). Hence min over consecutive pairs equals
+    # min over all pairs. QED.
+    #
+    # We compute the equivalent O(n²) scan directly — avoids the Base.diff/sort/unique
+    # Base call chain that triggers a WasmTarget codegen trap under composition. Same
+    # answer, same semantics, for the O(n²) cost (n = bar count, typically small).
     if width === nothing
-        if length(x) <= 1
-            w = 1.0
-        else
-            sorted = sort(unique(x))
-            diffs = diff(sorted)
-            w = isempty(diffs) ? 1.0 : minimum(diffs)
+        n = length(x)
+        w = Inf
+        i = 1
+        while i <= n
+            xi = x[i]
+            if isfinite(xi)
+                j = i + 1
+                while j <= n
+                    xj = x[j]
+                    if isfinite(xj)
+                        d = abs(xi - xj)
+                        if d > 0.0 && d < w
+                            w = d
+                        end
+                    end
+                    j += 1
+                end
+            end
+            i += 1
         end
+        if !isfinite(w); w = 1.0; end
         w *= (1.0 - Float64(gap))
     else
         w = Float64(width)

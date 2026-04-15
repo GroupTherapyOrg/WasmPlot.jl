@@ -26,6 +26,7 @@ export canvas_fill_rect, canvas_clear_rect, canvas_stroke_rect
 export canvas_set_stroke_rgb, canvas_set_fill_rgb, canvas_set_fill_rgba
 export canvas_set_line_width, canvas_arc, canvas_close_path
 export canvas_save, canvas_restore, canvas_set_font_size
+export canvas_translate, canvas_rotate
 export canvas_fill_text_char
 
 # Rendering

@@ -45,6 +45,10 @@
 @noinline function canvas_save()::Int64; Base.donotdelete(0); Int64(0); end
 @noinline function canvas_restore()::Int64; Base.donotdelete(0); Int64(0); end
 
+# ─── Transforms (Canvas2D direct mapping) ───
+@noinline function canvas_translate(x::Float64, y::Float64)::Int64; Base.donotdelete(x, y); Int64(0); end
+@noinline function canvas_rotate(angle::Float64)::Int64; Base.donotdelete(angle); Int64(0); end
+
 # ─── Dash pattern ───
 @noinline function canvas_set_line_dash_solid()::Int64; Base.donotdelete(0); Int64(0); end
 @noinline function canvas_set_line_dash_dashed()::Int64; Base.donotdelete(0); Int64(0); end
@@ -72,6 +76,8 @@ const CANVAS2D_STUBS = [
     (canvas_fill_text_char,    "fill_text_char",    (Float64, Float64, Float64),        Int64),
     (canvas_save,              "save",              (),                                 Int64),
     (canvas_restore,           "restore",           (),                                 Int64),
+    (canvas_translate,         "translate",         (Float64, Float64),                 Int64),
+    (canvas_rotate,            "rotate",            (Float64,),                         Int64),
     (canvas_set_line_dash_solid,  "set_line_dash_solid",  (),                           Int64),
     (canvas_set_line_dash_dashed, "set_line_dash_dashed", (),                           Int64),
     (canvas_set_line_dash_dotted, "set_line_dash_dotted", (),                           Int64),
@@ -131,6 +137,8 @@ function canvas2d_imports(ctx) {
     fill_text_char:    function(c,x,y)  { ctx.fillText(String.fromCharCode(c), x, y); return 0n; },
     save:              function()       { ctx.save(); return 0n; },
     restore:           function()       { ctx.restore(); return 0n; },
+    translate:         function(x,y)    { ctx.translate(x, y); return 0n; },
+    rotate:            function(a)      { ctx.rotate(a); return 0n; },
     set_line_dash_solid:  function()    { ctx.setLineDash([]); return 0n; },
     set_line_dash_dashed: function()    { ctx.setLineDash([6,4]); return 0n; },
     set_line_dash_dotted: function()    { ctx.setLineDash([2,3]); return 0n; },
