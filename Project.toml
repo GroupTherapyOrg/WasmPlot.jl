@@ -3,11 +3,10 @@ uuid = "c1c0b9ed-8be2-478a-b5eb-22e4f5885b7b"
 version = "0.1.0"
 
 [deps]
-JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 WasmTarget = "9f3a1415-1112-405b-ae89-c61daf9872bd"
 
 [compat]
-JSON = "0.21.4"
+WasmTarget = "0.1"
 julia = "~1.12"
 
 [extras]
