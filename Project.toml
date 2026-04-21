@@ -5,6 +5,7 @@ authors = ["Dale Black"]
 
 [compat]
 Aqua = "0.8"
+Dates = "1"
 JSON = "1"
 Test = "1"
 WasmTarget = "0.1"
@@ -12,9 +13,10 @@ julia = "~1.12"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 WasmTarget = "9f3a1415-1112-405b-ae89-c61daf9872bd"
 
 [targets]
-test = ["Aqua", "JSON", "Test", "WasmTarget"]
+test = ["Aqua", "Dates", "JSON", "Test", "WasmTarget"]
