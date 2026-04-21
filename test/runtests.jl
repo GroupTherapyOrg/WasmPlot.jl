@@ -198,3 +198,7 @@ using WasmPlot
         @test ax.col isa Int64
     end
 end
+
+include("wasm_compile_test.jl")
+include("wasm_e2e_test.jl")
+include("test_aqua.jl")

@@ -1,17 +1,20 @@
 name = "WasmPlot"
 uuid = "c1c0b9ed-8be2-478a-b5eb-22e4f5885b7b"
 version = "0.1.0"
-
-[deps]
-WasmTarget = "9f3a1415-1112-405b-ae89-c61daf9872bd"
+authors = ["Dale Black"]
 
 [compat]
+Aqua = "0.8"
+JSON = "1"
+Test = "1"
 WasmTarget = "0.1"
 julia = "~1.12"
 
 [extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+WasmTarget = "9f3a1415-1112-405b-ae89-c61daf9872bd"
 
 [targets]
-test = ["JSON", "Test"]
+test = ["Aqua", "JSON", "Test", "WasmTarget"]

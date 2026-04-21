@@ -25,9 +25,5 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: julia --project=. -e 'using Pkg; Pkg.instantiate()'
-      - name: Run unit tests
-        run: julia --project=. test/runtests.jl
-      - name: Run WASM compilation tests
-        run: julia --project=. test/wasm_compile_test.jl
-      - name: Run WASM e2e tests
-        run: julia --project=. test/wasm_e2e_test.jl
+      - name: Run tests
+        run: julia --project=. -e 'using Pkg; Pkg.test()'
