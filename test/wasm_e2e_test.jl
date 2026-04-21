@@ -107,7 +107,7 @@ _e2e_limits_line()::Float64 = begin
         WasmPlot.LinePlot[WasmPlot.LinePlot(Float64[0.0, 5.0, 10.0], Float64[-1.0, 0.0, 1.0],
             WasmPlot.RGBA(0.0, 0.0, 1.0, 1.0), 1.5, Int64(0), "")],
         WasmPlot.ScatterPlot[], WasmPlot.BarPlot[], WasmPlot.HeatmapPlot[],
-        "", "", "", NaN, NaN, NaN, NaN, Int64(0), Int64(0),
+        "", "", "", "", NaN, NaN, NaN, NaN, Int64(0), Int64(0),
         WasmPlot.RGBA(1.0, 1.0, 1.0, 1.0), true, true,
         WasmPlot.RGBA(0.0, 0.0, 0.0, 0.12), WasmPlot.RGBA(0.0, 0.0, 0.0, 1.0),
         Int64(0), Int64(1), Int64(1))
@@ -121,7 +121,7 @@ _e2e_limits_bar_includes_zero()::Float64 = begin
         WasmPlot.BarPlot[WasmPlot.BarPlot(Float64[1.0, 2.0], Float64[5.0, 10.0],
             WasmPlot.RGBA(0.0, 0.5, 0.0, 1.0), 0.8, WasmPlot.RGBA(0.0, 0.0, 0.0, 1.0), 0.0, "")],
         WasmPlot.HeatmapPlot[],
-        "", "", "", NaN, NaN, NaN, NaN, Int64(0), Int64(0),
+        "", "", "", "", NaN, NaN, NaN, NaN, Int64(0), Int64(0),
         WasmPlot.RGBA(1.0, 1.0, 1.0, 1.0), true, true,
         WasmPlot.RGBA(0.0, 0.0, 0.0, 0.12), WasmPlot.RGBA(0.0, 0.0, 0.0, 1.0),
         Int64(0), Int64(1), Int64(1))
@@ -137,7 +137,7 @@ _e2e_viewport_bounds()::Float64 = begin
         WasmPlot.LinePlot[WasmPlot.LinePlot(Float64[0.0, 1.0], Float64[0.0, 1.0],
             WasmPlot.RGBA(0.0, 0.0, 1.0, 1.0), 1.5, Int64(0), "")],
         WasmPlot.ScatterPlot[], WasmPlot.BarPlot[], WasmPlot.HeatmapPlot[],
-        "", "", "", NaN, NaN, NaN, NaN, Int64(0), Int64(0),
+        "", "", "", "", NaN, NaN, NaN, NaN, Int64(0), Int64(0),
         WasmPlot.RGBA(1.0, 1.0, 1.0, 1.0), true, true,
         WasmPlot.RGBA(0.0, 0.0, 0.0, 0.12), WasmPlot.RGBA(0.0, 0.0, 0.0, 1.0),
         Int64(0), Int64(1), Int64(1))
@@ -156,7 +156,7 @@ _e2e_multi_panel_viewport_count()::Int64 = begin
                 WasmPlot.LinePlot[WasmPlot.LinePlot(Float64[0.0, 1.0], Float64[0.0, 1.0],
                     WasmPlot.RGBA(0.0, 0.0, 1.0, 1.0), 1.5, Int64(0), "")],
                 WasmPlot.ScatterPlot[], WasmPlot.BarPlot[], WasmPlot.HeatmapPlot[],
-                "", "", "", NaN, NaN, NaN, NaN, Int64(0), Int64(0),
+                "", "", "", "", NaN, NaN, NaN, NaN, Int64(0), Int64(0),
                 WasmPlot.RGBA(1.0, 1.0, 1.0, 1.0), true, true,
                 WasmPlot.RGBA(0.0, 0.0, 0.0, 0.12), WasmPlot.RGBA(0.0, 0.0, 0.0, 1.0),
                 Int64(0), r, c)
