@@ -185,11 +185,27 @@ function compute_viewport(ax::Axis, fig::Figure, max_row::Int64, max_col::Int64)
     return AxisViewport(pl, pr, pt, pb, xmin, xmax, ymin, ymax, xticks, yticks)
 end
 
-"""Format a tick value as a clean string."""
+"""Format a tick value as a clean string.
+
+We compose the result from `string(::Int)` calls only — `string(::Float64)`
+goes through `Ryu.writeshortest`, which WasmTarget auto-discovers but
+currently traps with `unreachable` somewhere in its body. Using the
+integer-only path here keeps every WasmPlot tick label safe in WASM
+until that upstream fix lands. Format matches the previous
+`round(val; digits=1)` output for the values WasmPlot actually emits
+(compute_ticks always picks 1-2-5-step ticks, so |val| ≤ 1e6 is
+sufficient for any realistic plot range).
+"""
 function _format_tick(val::Float64)::String
     if abs(val - round(val)) < 1e-9 && abs(val) < 1e6
         return string(round(Int, val))
-    else
-        return string(round(val; digits=1))
     end
+    # Float branch — emit "<int>.<tenth>" without ever calling
+    # string(::Float64). Round to nearest tenth, then split into the
+    # integer part and the absolute single-digit fractional part.
+    scaled = round(Int, val * 10.0)
+    int_part = scaled ÷ 10
+    frac = abs(scaled % 10)
+    sign_prefix = (val < 0.0 && int_part == 0) ? "-" : ""
+    return sign_prefix * string(int_part) * "." * string(frac)
 end
