@@ -18,19 +18,9 @@ function render!(fig::Figure)
     _set_fill(fig.backgroundcolor)
     canvas_fill_rect(0.0, 0.0, w, h)
 
-    # Compute grid dims once outside the per-axis loop so we don't nest
-    # Vector{Axis} iteration when compute_viewport runs (WasmTarget's
-    # iterator lowering trapped on the second outer iteration when the
-    # inner walk used a generic `for a in fig.axes`).
-    max_row, max_col = grid_dims(fig)
-
-    n = length(fig.axes)
-    i = 1
-    while i <= n
-        ax = fig.axes[i]
-        vp = compute_viewport(ax, fig, max_row, max_col)
+    for ax in fig.axes
+        vp = compute_viewport(ax, fig)
         _render_axis!(ax, vp, fig.fontsize)
-        i += 1
     end
 end
 

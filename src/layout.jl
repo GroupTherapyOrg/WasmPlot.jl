@@ -131,40 +131,16 @@ struct AxisViewport
 end
 
 """
-    grid_dims(fig) -> (max_row, max_col)
-
-Walk fig.axes once and return the grid extent. Hoisted out of
-`compute_viewport` so render!'s outer `for ax in fig.axes` loop doesn't
-nest Vector{Axis} iteration inside a per-axis viewport computation —
-that nesting traps WasmTarget's iterator lowering when there's more
-than one axis (only the first axis renders, the second traps with
-`unreachable`).
+    compute_viewport(ax, fig) -> AxisViewport
 """
-function grid_dims(fig::Figure)
+function compute_viewport(ax::Axis, fig::Figure)
+    # Find grid dimensions from all axes
     max_row = Int64(1); max_col = Int64(1)
-    n = length(fig.axes)
-    i = 1
-    while i <= n
-        a = fig.axes[i]
+    for a in fig.axes
         a.row > max_row && (max_row = a.row)
         a.col > max_col && (max_col = a.col)
-        i += 1
-    end
-    return (max_row, max_col)
-end
-
-"""
-    compute_viewport(ax, fig) -> AxisViewport
-
-Convenience wrapper — computes grid dims itself. Prefer the
-five-arg form below in tight loops to avoid re-walking fig.axes per axis.
-"""
-compute_viewport(ax::Axis, fig::Figure) =
-    let (mr, mc) = grid_dims(fig)
-        compute_viewport(ax, fig, mr, mc)
     end
 
-function compute_viewport(ax::Axis, fig::Figure, max_row::Int64, max_col::Int64)
     fw = Float64(fig.width)
     fh = Float64(fig.height)
     cell_w = fw / Float64(max_col)
