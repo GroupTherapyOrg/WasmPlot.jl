@@ -177,11 +177,18 @@ function _format_tick(val::Float64)::String
         return string(round(Int, val))
     end
     # Float branch — emit "<int>.<tenth>" without ever calling
-    # string(::Float64). Round to nearest tenth, then split into the
-    # integer part and the absolute single-digit fractional part.
+    # string(::Float64). Round to nearest tenth, branch on sign so each
+    # arm produces a String through one straight concatenation chain
+    # (no `&&` + ternary returning String — WasmTarget mistypes the
+    # Bool result of `i64 == 0` and emits a malformed call site).
     scaled = round(Int, val * 10.0)
+    if scaled < 0
+        abs_scaled = -scaled
+        int_part = abs_scaled ÷ 10
+        frac = abs_scaled - int_part * 10
+        return "-" * string(int_part) * "." * string(frac)
+    end
     int_part = scaled ÷ 10
-    frac = abs(scaled % 10)
-    sign_prefix = (val < 0.0 && int_part == 0) ? "-" : ""
-    return sign_prefix * string(int_part) * "." * string(frac)
+    frac = scaled - int_part * 10
+    return string(int_part) * "." * string(frac)
 end
